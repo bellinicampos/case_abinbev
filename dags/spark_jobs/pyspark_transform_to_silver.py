@@ -1,7 +1,8 @@
 
 import sys
+import logging
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, sum
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType
 
 class TransformRaw:
@@ -52,6 +53,12 @@ class TransformRaw:
         )
 
         df.write.parquet(self.path_transformed, mode='overwrite', partitionBy='state')
+
+        # APRESENTA A QUANTIDADE DE NULOS POR COLUNA
+        for column in df.columns:
+            null_count = df.filter(df[column].isNull()).count()
+            if null_count > 0:
+                logging.warning(f"Data quality check. Found {null_count} null values in column {column}")        
 
         self.spark.stop()
 
