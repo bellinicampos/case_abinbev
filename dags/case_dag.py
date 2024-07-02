@@ -1,8 +1,9 @@
-import pendulum
 from datetime import timedelta
 from airflow import DAG
+from airflow.utils.dates import days_ago
 from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.dataproc import DataprocCreateBatchOperator
+from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from classe_case import CaseABInBev
 from slack_notification import notification
 
@@ -21,7 +22,7 @@ default_args = {
 with DAG(
     dag_id= "case_abinbev",
     default_args= default_args,
-    start_date= pendulum.datetime(2024,6,29),
+    start_date= days_ago(1),
     schedule_interval= '0 7 * * *',
     max_active_runs= 1,
     catchup= False,
@@ -36,34 +37,50 @@ with DAG(
         provide_context= True
     )
 
-    # TRANSFORMA JSON EM PARQUET PARTICIONADO POR LOCALIZACAO
-    pyspark_transform_to_silver = DataprocCreateBatchOperator(
-        task_id= "pyspark_transform_to_silver",
-        batch= classe.pyspark_batch_config(
-            classe.pyspark_transform_to_silver,
-            [
-                classe.path_raw_json,
-                classe.path_transformed
-            ]
-        ),
-        batch_id= classe.batch_id_transform,
-        region= classe.region,
-        gcp_conn_id= classe.gcp_conn_id
+    # TRANSFORMA JSON EM PARQUET PARTICIONADO POR LOCALIZACAO (OPÇÕES NA GCP OU PRÓPRIO AIRFLOW)
+
+    # pyspark_transform_to_silver = DataprocCreateBatchOperator(
+    #     task_id= "pyspark_transform_to_silver",
+    #     batch= classe.pyspark_batch_config(
+    #         classe.pyspark_transform_to_silver,
+    #         [
+    #             classe.path_raw_json,
+    #             classe.path_transformed
+    #         ]
+    #     ),
+    #     batch_id= classe.batch_id_transform,
+    #     region= classe.region,
+    #     gcp_conn_id= classe.gcp_conn_id
+    # )
+
+    pyspark_transform_to_silver = SparkSubmitOperator(
+        task_id= 'pyspark_transform_to_silver',
+        application= classe.pyspark_transform_to_silver,
+        conn_id= 'spark_default',
+        conf= {'spark.master': 'spark://your_spark_master_host:7077'}
     )
 
-    # AGREGA DADOS POR TIPO E LOCALIZACAO E SALVA NA GOLD LAYER
-    pyspark_transform_to_gold = DataprocCreateBatchOperator(
-        task_id= "pyspark_transform_to_gold",
-        batch= classe.pyspark_batch_config(
-            classe.pyspark_transform_to_gold,
-            [
-                classe.path_transformed,
-                classe.path_aggregated_view
-            ]
-        ),
-        batch_id= classe.batch_id_aggregate,
-        region= classe.region,
-        gcp_conn_id= classe.gcp_conn_id
+    # AGREGA DADOS POR TIPO E LOCALIZACAO E SALVA NA GOLD LAYER (OPÇÕES NA GCP OU PRÓPRIO AIRFLOW)
+
+    # pyspark_transform_to_gold = DataprocCreateBatchOperator(
+    #     task_id= "pyspark_transform_to_gold",
+    #     batch= classe.pyspark_batch_config(
+    #         classe.pyspark_transform_to_gold,
+    #         [
+    #             classe.path_transformed,
+    #             classe.path_aggregated_view
+    #         ]
+    #     ),
+    #     batch_id= classe.batch_id_aggregate,
+    #     region= classe.region,
+    #     gcp_conn_id= classe.gcp_conn_id
+    # )
+
+    pyspark_transform_to_gold = SparkSubmitOperator(
+        task_id= 'pyspark_transform_to_gold',
+        application= classe.pyspark_transform_to_gold,
+        conn_id= 'spark_default',
+        conf= {'spark.master': 'spark://your_spark_master_host:7077'}
     )
 
     # EXECUTION ORDER
