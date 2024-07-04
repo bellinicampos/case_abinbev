@@ -2,7 +2,7 @@ from datetime import timedelta
 from airflow import DAG
 from airflow.utils.dates import days_ago
 from airflow.operators.python import PythonOperator
-from airflow.providers.google.cloud.operators.dataproc import DataprocCreateBatchOperator
+# from airflow.providers.google.cloud.operators.dataproc import DataprocCreateBatchOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from classe_case import CaseABInBev
 from slack_notification import notification
@@ -14,7 +14,7 @@ default_args = {
     'depends_on_past': False,
     'email_on_failure': False, # PODE SER UMA FORMA DE ALERTA
     'email_on_retry': False,
-    'on_failure_callback': notification, # EN CASO DE FALHA, ENVIA MSG EM CANAL DO SLACK
+    'on_failure_callback': notification, # EM CASO DE FALHA, ENVIA MSG EM CANAL DO SLACK
     'retries': 3, # TENTA 3 VEZES ANTES DE FALHAR
     'retry_delay': timedelta(minutes=5) # INTERVALO ENTRE AS TENTATIVAS
 }
@@ -37,7 +37,7 @@ with DAG(
         provide_context= True
     )
 
-    # TRANSFORMA JSON EM PARQUET PARTICIONADO POR LOCALIZACAO (OPÇÕES NA GCP OU PRÓPRIO AIRFLOW)
+    # TRANSFORMA JSON EM PARQUET PARTICIONADO POR LOCALIZACAO (OPÇÃO NA GCP)
 
     # pyspark_transform_to_silver = DataprocCreateBatchOperator(
     #     task_id= "pyspark_transform_to_silver",
@@ -53,6 +53,7 @@ with DAG(
     #     gcp_conn_id= classe.gcp_conn_id
     # )
 
+    # TRANSFORMA JSON EM PARQUET PARTICIONADO POR LOCALIZACAO (OPÇÃO NO PRÓPRIO AIRFLOW)
     pyspark_transform_to_silver = SparkSubmitOperator(
         task_id= 'pyspark_transform_to_silver',
         application= classe.pyspark_transform_to_silver,
@@ -60,7 +61,7 @@ with DAG(
         conf= {'spark.master': 'spark://your_spark_master_host:7077'}
     )
 
-    # AGREGA DADOS POR TIPO E LOCALIZACAO E SALVA NA GOLD LAYER (OPÇÕES NA GCP OU PRÓPRIO AIRFLOW)
+    # AGREGA DADOS POR TIPO E LOCALIZACAO E SALVA NA GOLD LAYER (OPÇÃO NA GCP)
 
     # pyspark_transform_to_gold = DataprocCreateBatchOperator(
     #     task_id= "pyspark_transform_to_gold",
@@ -76,6 +77,7 @@ with DAG(
     #     gcp_conn_id= classe.gcp_conn_id
     # )
 
+    # AGREGA DADOS POR TIPO E LOCALIZACAO E SALVA NA GOLD LAYER (OPÇÃO NO PRÓPRIO AIRFLOW)
     pyspark_transform_to_gold = SparkSubmitOperator(
         task_id= 'pyspark_transform_to_gold',
         application= classe.pyspark_transform_to_gold,
